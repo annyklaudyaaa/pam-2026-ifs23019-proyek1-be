@@ -11,8 +11,8 @@ POST {{BaseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "name": "Anny Klaudya",
-  "username": "audy",
+  "name": "Klaudya",
+  "username": "annyhtb",
   "password": "password123"
 }
 
@@ -22,7 +22,7 @@ POST {{BaseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "audy",
+  "username": "annyhtb",
   "password": "password123"
 }
 
@@ -63,10 +63,11 @@ Content-Type: application/json
 # @name GetUserMe
 GET {{BaseUrl}}/users/me
 Authorization: Bearer {{authToken}}
-Content-Type: application/json
 
 > {%
-    client.global.set("userId", response.body.data.user.id);
+    if (response.status === 200) {
+        client.global.set("userId", response.body.data.user.id);
+    }
 %}
 
 ### Mengubah informasi akun

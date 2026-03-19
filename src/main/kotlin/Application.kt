@@ -48,8 +48,9 @@ fun Application.module() {
             )
 
             validate { credential ->
+                // Ubah "userId" menjadi "id"
                 val userId = credential.payload
-                    .getClaim("userId")
+                    .getClaim("id")
                     .asString()
 
                 if (!userId.isNullOrBlank())
