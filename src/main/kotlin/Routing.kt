@@ -9,51 +9,52 @@ import io.ktor.server.routing.*
 import org.delcom.data.AppException
 import org.delcom.data.ErrorResponse
 import org.delcom.helpers.JWTConstants
-import org.delcom.helpers.parseMessageToMap
 import org.delcom.services.ArtistService
 import org.delcom.services.AuthService
 import org.delcom.services.UserService
 import org.koin.ktor.ext.inject
 
 fun Application.configureRouting() {
-    // Inject Service yang sudah didaftarkan di appModule
     val artistService: ArtistService by inject()
     val authService: AuthService by inject()
     val userService: UserService by inject()
 
-    // Global Exception Handler (StatusPages)
     install(StatusPages) {
+        // Menangani error spesifik dari aplikasi kita (Validator, Database, dll)
         exception<AppException> { call, cause ->
-            val dataMap: Map<String, List<String>> = parseMessageToMap(cause.message)
+            // FIX: Gunakan cause.statusCode (sesuaikan dengan AppException.kt)
+            val status = HttpStatusCode.fromValue(cause.statusCode)
+
             call.respond(
-                status = HttpStatusCode.fromValue(cause.code),
+                status = status,
                 message = ErrorResponse(
                     status = "fail",
-                    message = if (dataMap.isEmpty()) cause.message else "Data tidak valid!",
-                    data = if (dataMap.isEmpty()) null else dataMap.toString()
+                    message = cause.message,
+                    // cause.data berisi string error dipisah '|' dari ValidatorHelper
+                    data = cause.data
                 )
             )
         }
 
+        // Menangani error umum/sistem
         exception<Throwable> { call, cause ->
             call.respond(
                 status = HttpStatusCode.InternalServerError,
                 message = ErrorResponse(
                     status = "error",
-                    message = cause.message ?: "Terjadi kesalahan pada server",
-                    data = ""
+                    message = cause.message ?: "Terjadi kesalahan internal pada server",
+                    data = null
                 )
             )
         }
     }
 
     routing {
-        // Endpoint Cek Status API
         get("/") {
-            call.respondText("SM Entertainment API is running. Welcome, Anny!")
+            call.respondText("SM Entertainment API is running. Welcome!")
         }
 
-        // --- AUTHENTICATION ROUTES ---
+        // --- AUTH ROUTES ---
         route("/auth") {
             post("/login") { authService.postLogin(call) }
             post("/register") { authService.postRegister(call) }
@@ -61,30 +62,30 @@ fun Application.configureRouting() {
             post("/logout") { authService.postLogout(call) }
         }
 
-        // --- PROTECTED ROUTES (Requires JWT) ---
+        // --- PROTECTED ROUTES ---
         authenticate(JWTConstants.NAME) {
-
-            // Manajemen User & Profile (Fitur Edit Profil yang diminta)
             route("/users") {
                 get("/me") { userService.getMe(call) }
-                put("/me") { userService.putMe(call) } // Edit Nama & About
+                put("/me") { userService.putMe(call) }
                 put("/me/password") { userService.putMyPassword(call) }
-                put("/me/photo") { userService.putMyPhoto(call) } // Ganti Foto Profil
+                put("/me/photo") { userService.putMyPhoto(call) }
             }
 
-            // Manajemen Artis SM Entertainment (CRUD + Search + Filter)
             route("/artists") {
-                get { artistService.getAll(call) } // Support Search, Filter, Pagination
-                get("/stats") { artistService.getStats(call) } // Untuk Dashboard Home
+                get { artistService.getAll(call) }
+                get("/stats") { artistService.getStats(call) }
                 post { artistService.post(call) }
                 get("/{id}") { artistService.getById(call) }
                 put("/{id}") { artistService.put(call) }
-                put("/{id}/image") { artistService.putImage(call) } // Upload Foto Artis
+                put("/{id}/image") { artistService.putImage(call) }
                 delete("/{id}") { artistService.delete(call) }
+
+                // Tambahkan endpoint untuk Bias System jika belum ada
+                post("/{id}/favorite") { artistService.toggleFavorite(call) }
+                get("/favorites") { artistService.getMyFavorites(call) }
             }
         }
 
-        // --- PUBLIC IMAGE ROUTES ---
         route("/images") {
             get("/users/{id}") { userService.getPhoto(call) }
             get("/artists/{id}") { artistService.getImage(call) }

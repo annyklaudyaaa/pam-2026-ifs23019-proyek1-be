@@ -3,7 +3,8 @@ package org.delcom.data
 import kotlinx.serialization.Serializable
 
 @Serializable
-open class AppException(
-    val code: Int,
-    override val message: String
+class AppException(
+    val statusCode: Int,          // Tambahkan 'val' di sini
+    override val message: String, // 'override val' sudah benar karena ini properti
+    val data: String? = null      // Tambahkan 'val' di sini
 ) : Exception(message)

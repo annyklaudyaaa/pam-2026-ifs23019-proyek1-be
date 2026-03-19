@@ -1,17 +1,21 @@
 package org.delcom.repositories
 
 import org.delcom.dao.ArtistDAO
+import org.delcom.dao.AlbumDAO // Tambahkan import ini
 import org.delcom.entities.Artist
+import org.delcom.entities.ArtistWithAlbums // Tambahkan import ini
 import org.delcom.helpers.suspendTransaction
 import org.delcom.helpers.artistDAOToModel
+import org.delcom.helpers.albumDAOToModel // Tambahkan import ini
 import org.delcom.tables.ArtistTable
+import org.delcom.tables.AlbumTable // Tambahkan import ini
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.util.*
 
 class ArtistRepository : IArtistRepository {
 
-    // 1. Mengambil semua data dengan Pagination, Search, dan Filter (Kategori & Status)
+    // 1. Mengambil semua data dengan Pagination, Search, dan Filter
     override suspend fun getAll(
         userId: String,
         search: String,
@@ -23,37 +27,31 @@ class ArtistRepository : IArtistRepository {
         val userUUID = UUID.fromString(userId)
         val offsetValue = (page - 1).toLong() * perPage
 
-        // Query dasar berdasarkan User ID (Data milik user tersebut)
         val query = ArtistTable.selectAll().where { ArtistTable.userId eq userUUID }
 
-        // Filter Search (Berdasarkan Nama Artis/Grup)
         if (search.isNotBlank()) {
             val keyword = "%${search.lowercase()}%"
             query.andWhere { ArtistTable.name.lowerCase() like keyword }
         }
 
-        // Filter Kategori (Contoh: "Girl Group", "Boy Group")
         if (!category.isNullOrBlank()) {
             query.andWhere { ArtistTable.category eq category }
         }
 
-        // Filter Status (Contoh: "Active", "Inactive")
         if (!status.isNullOrBlank()) {
             query.andWhere { ArtistTable.status eq status }
         }
 
-        // Eksekusi dengan Sorting terbaru di atas
         ArtistDAO.wrapRows(query)
             .orderBy(ArtistTable.createdAt to SortOrder.DESC)
-            .limit(perPage)         // Gunakan limit secara terpisah
-            .offset(offsetValue)    // Gunakan offset secara terpisah
+            .limit(perPage)
+            .offset(offsetValue)
             .map(::artistDAOToModel)
     }
 
-    // 2. Mengambil Statistik untuk Dashboard Home (Artis per Kategori)
+    // 2. Mengambil Statistik untuk Dashboard
     override suspend fun getStats(userId: String): Map<String, Long> = suspendTransaction {
         val userUUID = UUID.fromString(userId)
-
         val total = ArtistTable.selectAll().where { ArtistTable.userId eq userUUID }.count()
         val girlGroups = ArtistTable.selectAll().where {
             (ArtistTable.userId eq userUUID) and (ArtistTable.category eq "Girl Group")
@@ -72,6 +70,22 @@ class ArtistRepository : IArtistRepository {
 
     override suspend fun getById(artistId: String): Artist? = suspendTransaction {
         ArtistDAO.findById(UUID.fromString(artistId))?.let(::artistDAOToModel)
+    }
+
+    // --- FITUR UNGGULAN: Interactive Discography ---
+    override suspend fun getByIdWithAlbums(artistId: String): ArtistWithAlbums? = suspendTransaction {
+        val artistUUID = UUID.fromString(artistId)
+        val artistDao = ArtistDAO.findById(artistUUID) ?: return@suspendTransaction null
+
+        // Ambil semua album milik artis ini dari AlbumTable
+        val albums = AlbumDAO.find { AlbumTable.artistId eq artistUUID }
+            .orderBy(AlbumTable.releaseDate to SortOrder.DESC)
+            .map(::albumDAOToModel)
+
+        ArtistWithAlbums(
+            artist = artistDAOToModel(artistDao),
+            albums = albums
+        )
     }
 
     override suspend fun create(artist: Artist): String = suspendTransaction {

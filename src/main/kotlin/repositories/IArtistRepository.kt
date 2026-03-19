@@ -1,9 +1,10 @@
 package org.delcom.repositories
 
 import org.delcom.entities.Artist
+import org.delcom.entities.ArtistWithAlbums // PENTING: Import wrapper ini
 
 interface IArtistRepository {
-    // Mengambil daftar artis dengan Search dan Filter (Category & Status)
+    // 1. Mengambil daftar artis dengan Search dan Filter (Category & Status)
     suspend fun getAll(
         userId: String,
         search: String,
@@ -13,12 +14,16 @@ interface IArtistRepository {
         status: String?
     ): List<Artist>
 
-    // Statistik untuk Dashboard (Contoh: Jumlah Boy Group vs Girl Group)
+    // 2. Statistik untuk Dashboard (Contoh: Jumlah Boy Group vs Girl Group)
     suspend fun getStats(userId: String): Map<String, Long>
 
-    // Operasi CRUD Standar
+    // 3. Operasi CRUD Standar
     suspend fun getById(artistId: String): Artist?
     suspend fun create(artist: Artist): String
     suspend fun update(userId: String, artistId: String, newArtist: Artist): Boolean
     suspend fun delete(userId: String, artistId: String): Boolean
+
+    // 4. FIX: Fungsi untuk Interactive Discography
+    // Mengambil Detail Artis sekaligus List Albumnya
+    suspend fun getByIdWithAlbums(artistId: String): ArtistWithAlbums?
 }

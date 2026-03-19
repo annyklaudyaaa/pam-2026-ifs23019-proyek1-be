@@ -7,8 +7,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.delcom.data.AppException
 import org.delcom.data.DataResponse
 import org.delcom.data.ArtistRequest
@@ -34,10 +32,10 @@ class ArtistService(
         val status = call.request.queryParameters["status"]
 
         val artists = artistRepo.getAll(user.id, search, page, perPage, category, status)
-        call.respond(DataResponse("success", "Berhasil", mapOf("artists" to artists)))
+        call.respond(DataResponse("success", "Berhasil mengambil daftar artis", mapOf("artists" to artists)))
     }
 
-    // 2. Detail Artis + Diskografi (Untuk Interactive Discography & Shared Element)
+    // 2. Detail Artis + Diskografi
     suspend fun getById(call: ApplicationCall) {
         val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid")
         val user = ServiceHelper.getAuthUser(call, userRepo)
@@ -47,7 +45,6 @@ class ArtistService(
             throw AppException(404, "Artis tidak ditemukan")
         }
 
-        // Cek status favorit untuk ikon hati di Android
         val isFav = favoriteRepo.isFavorite(user.id, artistId)
 
         call.respond(DataResponse("success", "Detail Artis", mapOf(
@@ -67,27 +64,54 @@ class ArtistService(
         call.respond(DataResponse("success", msg, mapOf("isFavorite" to isAdded)))
     }
 
-    // 4. Statistik Dashboard
+    // 4. Bias System: Daftar Favorit Saya
+    suspend fun getMyFavorites(call: ApplicationCall) {
+        val user = ServiceHelper.getAuthUser(call, userRepo)
+        val favorites = favoriteRepo.getFavorites(user.id)
+        call.respond(DataResponse("success", "Daftar Bias kamu", mapOf("favorites" to favorites)))
+    }
+
+    // 5. Statistik Dashboard
     suspend fun getStats(call: ApplicationCall) {
         val user = ServiceHelper.getAuthUser(call, userRepo)
         val stats = artistRepo.getStats(user.id)
         call.respond(DataResponse("success", "Statistik", mapOf("stats" to stats)))
     }
 
-    // 5. Create Artist
+    // 6. Create Artist
     suspend fun post(call: ApplicationCall) {
         val user = ServiceHelper.getAuthUser(call, userRepo)
         val request = call.receive<ArtistRequest>()
         request.userId = user.id
 
         val validator = ValidatorHelper(request.toMap())
-        validator.required("name", "Nama wajib diisi").validate()
+        validator.required("name", "Nama wajib diisi")
+        validator.required("category", "Kategori wajib diisi").validate()
 
         val id = artistRepo.create(request.toEntity())
-        call.respond(DataResponse("success", "Berhasil", mapOf("artistId" to id)))
+        call.respond(DataResponse("success", "Berhasil menambahkan artis", mapOf("artistId" to id)))
     }
 
-    // 6. Upload Gambar Artis
+    // 7. Update Data Teks Artis
+    suspend fun put(call: ApplicationCall) {
+        val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid")
+        val user = ServiceHelper.getAuthUser(call, userRepo)
+        val request = call.receive<ArtistRequest>()
+
+        val oldArtist = artistRepo.getById(artistId)
+        if (oldArtist == null || oldArtist.userId != user.id) {
+            throw AppException(404, "Artis tidak ditemukan")
+        }
+
+        request.imageUrl = oldArtist.imageUrl
+
+        val isUpdated = artistRepo.update(user.id, artistId, request.toEntity())
+        if (!isUpdated) throw AppException(400, "Gagal memperbarui data")
+
+        call.respond(DataResponse("success", "Data berhasil diubah", null))
+    }
+
+    // 8. Upload/Ganti Gambar Artis
     suspend fun putImage(call: ApplicationCall) {
         val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid")
         val user = ServiceHelper.getAuthUser(call, userRepo)
@@ -99,7 +123,7 @@ class ArtistService(
             if (part is PartData.FileItem) {
                 val fileName = "${UUID.randomUUID()}.${part.originalFileName?.substringAfterLast('.')}"
                 filePath = "uploads/artists/$fileName"
-                val file = File(filePath!!)
+                val file = File(filePath)
                 file.parentFile.mkdirs()
                 part.provider().copyAndClose(file.writeChannel())
             }
@@ -107,7 +131,11 @@ class ArtistService(
         }
 
         val oldArtist = artistRepo.getById(artistId)
-        if (oldArtist == null || oldArtist.userId != user.id) throw AppException(404, "Not Found")
+        if (oldArtist == null || oldArtist.userId != user.id) {
+            throw AppException(404, "Not Found")
+        }
+
+        oldArtist.imageUrl?.let { File(it).apply { if (exists()) delete() } }
 
         val newEntity = oldArtist.copy(imageUrl = filePath, updatedAt = kotlinx.datetime.Clock.System.now())
         artistRepo.update(user.id, artistId, newEntity)
@@ -115,7 +143,23 @@ class ArtistService(
         call.respond(DataResponse("success", "Gambar diperbarui", null))
     }
 
-    // 7. Stream Image ke Android
+    // 9. Delete Artist
+    suspend fun delete(call: ApplicationCall) {
+        val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid")
+        val user = ServiceHelper.getAuthUser(call, userRepo)
+        val artist = artistRepo.getById(artistId)
+
+        if (artist == null || artist.userId != user.id) {
+            throw AppException(404, "Data tidak ditemukan")
+        }
+
+        if (artistRepo.delete(user.id, artistId)) {
+            artist.imageUrl?.let { File(it).apply { if (exists()) delete() } }
+            call.respond(DataResponse("success", "Berhasil menghapus artis", null))
+        }
+    }
+
+    // 10. Stream Image ke Android
     suspend fun getImage(call: ApplicationCall) {
         val artistId = call.parameters["id"] ?: return call.respond(HttpStatusCode.BadRequest)
         val artist = artistRepo.getById(artistId) ?: return call.respond(HttpStatusCode.NotFound)
