@@ -1,0 +1,189 @@
+## Global Variabel
+@BaseUrl = https://pam-2026-p5-ifs23019-be.annyklaudya.site:8080/
+
+### ---------------------------------------
+## Auth
+### ---------------------------------------
+
+### Melakukan pendaftaran
+# @name PostRegister
+POST {{BaseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Anny Klaudya",
+  "username": "anny",
+  "password": "password123"
+}
+
+### Masuk ke layanan
+# @name PostLogin
+POST {{BaseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "anny",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("authToken", response.body.data.authToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
+
+### Keluar dari layanan
+# @name PostLogout
+POST {{BaseUrl}}/auth/logout
+Content-Type: application/json
+
+{
+  "authToken": "{{authToken}}"
+}
+
+### Refresh Token
+# @name PostRefreshToken
+POST {{BaseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "authToken": "{{authToken}}",
+  "refreshToken": "{{refreshToken}}"
+}
+
+> {%
+    client.global.set("authToken", response.body.data.authToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
+
+### ---------------------------------------
+## Users (Profile Management)
+### ---------------------------------------
+
+### Mengambil informasi akun saya
+# @name GetUserMe
+GET {{BaseUrl}}/users/me
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+> {%
+    client.global.set("userId", response.body.data.user.id);
+%}
+
+### Mengubah informasi akun (Edit Profile)
+# @name PutUserMe
+PUT {{BaseUrl}}/users/me
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Anny Klaudya Hutabarat",
+  "about": "Informatics Student at IT Del | SM Ent Stan"
+}
+
+### Mengubah kata sandi
+# @name PutUserMePassword
+PUT {{BaseUrl}}/users/me/password
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPassword": "passwordBaru",
+  "password": "password123"
+}
+
+### Mengubah photo profile
+# @name PutUserMePhoto
+PUT {{BaseUrl}}/users/me/photo
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="photo"; filename="profile.png"
+Content-Type: image/png
+
+< ./uploads/examples/anny.png
+--WebAppBoundary--
+
+### Mengambil photo profile user
+# @name GetMyPhoto
+GET {{BaseUrl}}/images/users/{{userId}}
+Authorization: Bearer {{authToken}}
+
+### ---------------------------------------
+## Artists (SM Entertainment Data)
+### ---------------------------------------
+
+### Mengambil daftar artis dengan Search & Filter Kategori
+# Parameter: page, perPage, category (Girl Group/Boy Group/Soloist), status (Active/Hiatus)
+# @name GetArtists
+GET {{BaseUrl}}/artists?page=1&perPage=10&category=Girl Group&search=aespa
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Menambahkan artis baru
+# @name PostArtists
+POST {{BaseUrl}}/artists
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "aespa",
+  "category": "Girl Group",
+  "description": "Next level girl group under SM Entertainment",
+  "debutYear": 2020,
+  "status": "Active"
+}
+
+> {%
+    client.global.set("artistId", response.body.data.artistId);
+%}
+
+### Mengambil detail artis berdasarkan ID
+# @name GetArtistById
+GET {{BaseUrl}}/artists/{{artistId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Mengubah data teks artis
+# @name PutArtist
+PUT {{BaseUrl}}/artists/{{artistId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "aespa",
+  "category": "Girl Group",
+  "description": "Global hitmaker under SM Entertainment",
+  "debutYear": 2020,
+  "status": "Active"
+}
+
+### Mengubah foto artis
+# @name PutArtistImage
+PUT {{BaseUrl}}/artists/{{artistId}}/image
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="aespa.png"
+Content-Type: image/png
+
+< ./uploads/examples/aespa.png
+--WebAppBoundary--
+
+### Mengambil statistik artis (Boy vs Girl Group)
+# @name GetArtistStats
+GET {{BaseUrl}}/artists/stats
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Mengambil foto artis untuk ditampilkan di UI
+# @name GetArtistImage
+GET {{BaseUrl}}/images/artists/{{artistId}}
+Authorization: Bearer {{authToken}}
+
+### Menghapus data artis
+# @name DeleteArtist
+DELETE {{BaseUrl}}/artists/{{artistId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
