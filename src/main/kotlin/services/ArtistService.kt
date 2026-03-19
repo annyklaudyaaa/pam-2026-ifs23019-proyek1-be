@@ -11,214 +11,115 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.delcom.data.AppException
 import org.delcom.data.DataResponse
-import org.delcom.data.ArtistRequest // Pastikan sudah membuat ArtistRequest
+import org.delcom.data.ArtistRequest
 import org.delcom.helpers.ServiceHelper
 import org.delcom.helpers.ValidatorHelper
-import org.delcom.repositories.IArtistRepository
-import org.delcom.repositories.IUserRepository
+import org.delcom.repositories.*
 import java.io.File
 import java.util.*
 
 class ArtistService(
     private val userRepo: IUserRepository,
-    private val artistRepo: IArtistRepository
+    private val artistRepo: IArtistRepository,
+    private val albumRepo: IAlbumRepository,
+    private val favoriteRepo: IFavoriteRepository
 ) {
-    // Mengambil semua daftar artis dengan dukungan Pagination, Search, dan Filter Kategori
+    // 1. Ambil Semua (Search & Filter)
     suspend fun getAll(call: ApplicationCall) {
         val user = ServiceHelper.getAuthUser(call, userRepo)
-
-        // Query Parameters untuk Fitur Search & Filter sesuai spek PAM
         val search = call.request.queryParameters["search"] ?: ""
         val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
         val perPage = call.request.queryParameters["perPage"]?.toIntOrNull() ?: 10
-
-        // Filter spesifik topik SM Entertainment
-        val category = call.request.queryParameters["category"] // Boy Group, Girl Group, Soloist
-        val status = call.request.queryParameters["status"] // Active, Inactive
+        val category = call.request.queryParameters["category"]
+        val status = call.request.queryParameters["status"]
 
         val artists = artistRepo.getAll(user.id, search, page, perPage, category, status)
-
-        val response = DataResponse(
-            "success",
-            "Berhasil mengambil daftar artis SM Entertainment",
-            mapOf(Pair("artists", artists))
-        )
-        call.respond(response)
+        call.respond(DataResponse("success", "Berhasil", mapOf("artists" to artists)))
     }
 
-    // Mengambil statistik (Misal: Jumlah artis per kategori) untuk Dashboard Home
+    // 2. Detail Artis + Diskografi (Untuk Interactive Discography & Shared Element)
+    suspend fun getById(call: ApplicationCall) {
+        val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid")
+        val user = ServiceHelper.getAuthUser(call, userRepo)
+
+        val data = artistRepo.getByIdWithAlbums(artistId)
+        if (data == null || data.artist.userId != user.id) {
+            throw AppException(404, "Artis tidak ditemukan")
+        }
+
+        // Cek status favorit untuk ikon hati di Android
+        val isFav = favoriteRepo.isFavorite(user.id, artistId)
+
+        call.respond(DataResponse("success", "Detail Artis", mapOf(
+            "artist" to data.artist,
+            "albums" to data.albums,
+            "isFavorite" to isFav
+        )))
+    }
+
+    // 3. Bias System: Toggle Favorite
+    suspend fun toggleFavorite(call: ApplicationCall) {
+        val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid")
+        val user = ServiceHelper.getAuthUser(call, userRepo)
+
+        val isAdded = favoriteRepo.toggleFavorite(user.id, artistId)
+        val msg = if (isAdded) "Ditambahkan ke Bias" else "Dihapus dari Bias"
+        call.respond(DataResponse("success", msg, mapOf("isFavorite" to isAdded)))
+    }
+
+    // 4. Statistik Dashboard
     suspend fun getStats(call: ApplicationCall) {
         val user = ServiceHelper.getAuthUser(call, userRepo)
         val stats = artistRepo.getStats(user.id)
-
-        val response = DataResponse(
-            "success",
-            "Berhasil mengambil statistik artis",
-            mapOf(Pair("stats", stats))
-        )
-        call.respond(response)
+        call.respond(DataResponse("success", "Statistik", mapOf("stats" to stats)))
     }
 
-    // Mengambil detail artis berdasarkan ID
-    suspend fun getById(call: ApplicationCall) {
-        val artistId = call.parameters["id"]
-            ?: throw AppException(400, "ID Artis tidak valid!")
-
-        val user = ServiceHelper.getAuthUser(call, userRepo)
-
-        val artist = artistRepo.getById(artistId)
-        if (artist == null || artist.userId != user.id) {
-            throw AppException(404, "Data artis tidak ditemukan!")
-        }
-
-        val response = DataResponse(
-            "success",
-            "Berhasil mengambil data artis",
-            mapOf(Pair("artist", artist))
-        )
-        call.respond(response)
-    }
-
-    // Menambahkan artis baru
+    // 5. Create Artist
     suspend fun post(call: ApplicationCall) {
         val user = ServiceHelper.getAuthUser(call, userRepo)
-
-        val request = call.receive<ArtistRequest>()
-        request.userId = user.id
-
-        // Validasi input sesuai field Artist
-        val validator = ValidatorHelper(request.toMap())
-        validator.required("name", "Nama artis tidak boleh kosong")
-        validator.required("category", "Kategori (Boy/Girl Group/Soloist) wajib diisi")
-        validator.required("description", "Deskripsi tidak boleh kosong")
-        validator.validate()
-
-        val artistId = artistRepo.create(request.toEntity())
-
-        val response = DataResponse(
-            "success",
-            "Berhasil menambahkan artis baru",
-            mapOf(Pair("artistId", artistId))
-        )
-        call.respond(response)
-    }
-
-    // Mengupdate data teks artis
-    suspend fun put(call: ApplicationCall) {
-        val artistId = call.parameters["id"]
-            ?: throw AppException(400, "ID Artis tidak valid!")
-
-        val user = ServiceHelper.getAuthUser(call, userRepo)
-
         val request = call.receive<ArtistRequest>()
         request.userId = user.id
 
         val validator = ValidatorHelper(request.toMap())
-        validator.required("name", "Nama tidak boleh kosong")
-        validator.required("category", "Kategori tidak boleh kosong")
-        validator.validate()
+        validator.required("name", "Nama wajib diisi").validate()
 
-        val oldArtist = artistRepo.getById(artistId)
-        if (oldArtist == null || oldArtist.userId != user.id) {
-            throw AppException(404, "Data artis tidak tersedia!")
-        }
-
-        // Mempertahankan foto lama saat update data teks
-        request.imageUrl = oldArtist.imageUrl
-
-        val isUpdated = artistRepo.update(user.id, artistId, request.toEntity())
-        if (!isUpdated) {
-            throw AppException(400, "Gagal memperbarui data artis!")
-        }
-
-        call.respond(DataResponse("success", "Berhasil mengubah data artis", null))
+        val id = artistRepo.create(request.toEntity())
+        call.respond(DataResponse("success", "Berhasil", mapOf("artistId" to id)))
     }
 
-    // Upload/Ganti Foto Artis (imageUrl)
+    // 6. Upload Gambar Artis
     suspend fun putImage(call: ApplicationCall) {
-        val artistId = call.parameters["id"]
-            ?: throw AppException(400, "ID Artis tidak valid!")
-
+        val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid")
         val user = ServiceHelper.getAuthUser(call, userRepo)
-        val request = ArtistRequest()
-        request.userId = user.id
 
-        // Proses upload file
-        val multipartData = call.receiveMultipart(formFieldLimit = 1024 * 1024 * 5)
-        multipartData.forEachPart { part ->
+        val multipart = call.receiveMultipart()
+        var filePath: String? = null
+
+        multipart.forEachPart { part ->
             if (part is PartData.FileItem) {
-                val ext = part.originalFileName?.substringAfterLast('.', "")
-                    ?.let { if (it.isNotEmpty()) ".$it" else "" } ?: ""
-
-                val fileName = UUID.randomUUID().toString() + ext
-                val filePath = "uploads/artists/$fileName"
-
-                withContext(Dispatchers.IO) {
-                    val file = File(filePath)
-                    file.parentFile.mkdirs()
-                    part.provider().copyAndClose(file.writeChannel())
-                    request.imageUrl = filePath
-                }
+                val fileName = "${UUID.randomUUID()}.${part.originalFileName?.substringAfterLast('.')}"
+                filePath = "uploads/artists/$fileName"
+                val file = File(filePath!!)
+                file.parentFile.mkdirs()
+                part.provider().copyAndClose(file.writeChannel())
             }
             part.dispose()
         }
 
-        if (request.imageUrl == null) {
-            throw AppException(400, "File gambar tidak ditemukan!")
-        }
-
         val oldArtist = artistRepo.getById(artistId)
-        if (oldArtist == null || oldArtist.userId != user.id) {
-            throw AppException(404, "Data artis tidak tersedia!")
-        }
+        if (oldArtist == null || oldArtist.userId != user.id) throw AppException(404, "Not Found")
 
-        // Sinkronisasi data lama agar tidak null
-        request.name = oldArtist.name
-        request.category = oldArtist.category
-        request.description = oldArtist.description
-        request.status = oldArtist.status
-        request.debutYear = oldArtist.debutYear
+        val newEntity = oldArtist.copy(imageUrl = filePath, updatedAt = kotlinx.datetime.Clock.System.now())
+        artistRepo.update(user.id, artistId, newEntity)
 
-        val isUpdated = artistRepo.update(user.id, artistId, request.toEntity())
-
-        // Hapus file lama jika update berhasil
-        if (isUpdated) {
-            oldArtist.imageUrl?.let { path ->
-                val oldFile = File(path)
-                if (oldFile.exists()) oldFile.delete()
-            }
-        }
-
-        call.respond(DataResponse("success", "Berhasil mengubah foto artis", null))
+        call.respond(DataResponse("success", "Gambar diperbarui", null))
     }
 
-    // Menghapus data artis beserta filenya
-    suspend fun delete(call: ApplicationCall) {
-        val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid!")
-        val user = ServiceHelper.getAuthUser(call, userRepo)
-        val oldArtist = artistRepo.getById(artistId)
-
-        if (oldArtist == null || oldArtist.userId != user.id) {
-            throw AppException(404, "Data tidak ditemukan!")
-        }
-
-        if (artistRepo.delete(user.id, artistId)) {
-            oldArtist.imageUrl?.let { path -> File(path).apply { if (exists()) delete() } }
-            call.respond(DataResponse("success", "Berhasil menghapus artis", null))
-        } else {
-            throw AppException(400, "Gagal menghapus data")
-        }
-    }
-
-    // Melayani file gambar untuk UI Android
+    // 7. Stream Image ke Android
     suspend fun getImage(call: ApplicationCall) {
-        val artistId = call.parameters["id"] ?: throw AppException(400, "ID tidak valid!")
+        val artistId = call.parameters["id"] ?: return call.respond(HttpStatusCode.BadRequest)
         val artist = artistRepo.getById(artistId) ?: return call.respond(HttpStatusCode.NotFound)
-
-        val filePath = artist.imageUrl ?: throw AppException(404, "Artis belum memiliki foto")
-        val file = File(filePath)
-
-        if (!file.exists()) throw AppException(404, "File tidak tersedia di server")
-        call.respondFile(file)
+        val file = File(artist.imageUrl ?: "")
+        if (file.exists()) call.respondFile(file) else call.respond(HttpStatusCode.NotFound)
     }
 }

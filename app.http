@@ -188,3 +188,25 @@ Authorization: Bearer {{authToken}}
 DELETE {{BaseUrl}}/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
+
+### ---------------------------------------
+## Diskografi & Bias System (Fitur Tambahan)
+### ---------------------------------------
+
+### Toggle Favorite (Tambah/Hapus dari Bias)
+# @name ToggleFavorite
+POST {{BaseUrl}}/artists/{{artistId}}/favorite
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Mengambil Daftar Semua Bias (Artis Favorit)
+# @name GetMyFavorites
+GET {{BaseUrl}}/artists/favorites
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Mengambil Detail Artis + Daftar Albumnya
+# @name GetArtistWithAlbums
+GET {{BaseUrl}}/artists/{{artistId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json

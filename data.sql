@@ -32,3 +32,22 @@ CREATE TABLE IF NOT EXISTS artists (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+-- Tabel Album (1 Artist bisa punya banyak Album)
+CREATE TABLE IF NOT EXISTS albums (
+                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    artist_id UUID NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    title VARCHAR(100) NOT NULL,
+    release_date VARCHAR(20),
+    cover_url TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+-- Tabel Favorites (Relasi antara User dan Artist favoritnya)
+CREATE TABLE IF NOT EXISTS favorites (
+                                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    artist_id UUID NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, artist_id) -- Supaya user tidak fav artis yang sama dua kali
+    );
