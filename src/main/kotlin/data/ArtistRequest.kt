@@ -31,7 +31,7 @@ data class ArtistRequest(
     // Mengubah Request menjadi Entity Artist untuk diproses oleh Repository
     fun toEntity(): Artist {
         return Artist(
-            id = "", // ID akan di-generate oleh Database (Exposed)
+            // id tidak perlu diisi karena sudah ada default UUID di Entity
             userId = userId,
             name = name,
             category = category,
@@ -39,8 +39,8 @@ data class ArtistRequest(
             imageUrl = imageUrl,
             debutYear = debutYear,
             status = status,
-            createdAt = Clock.System.now().toString(),
-            updatedAt = Clock.System.now().toString()
+            createdAt = Clock.System.now(), // HAPUS .toString() agar tetap bertipe Instant
+            updatedAt = Clock.System.now()  // HAPUS .toString() agar tetap bertipe Instant
         )
     }
 }
