@@ -45,7 +45,7 @@ class ArtistRepository : IArtistRepository {
         // Eksekusi dengan Pagination dan Sorting (Terbaru dulu)
         ArtistDAO.wrapRows(query)
             .orderBy(ArtistTable.createdAt to SortOrder.DESC)
-            .limit(perPage, offset = offsetValue)
+            .limit(perPage).offset(start = offsetValue)
             .map(::artistDAOToModel)
     }
 
