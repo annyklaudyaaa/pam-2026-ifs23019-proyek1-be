@@ -3,28 +3,43 @@
 # @BaseUrl = http://127.0.0.1:8000
 
 ### ---------------------------------------
-## Auth
+## 1. AUTHENTICATION (START HERE)
 ### ---------------------------------------
 
-### Melakukan pendaftaran
+### [STEP 1] Melakukan pendaftaran akun baru
 # @name PostRegister
 POST {{BaseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "name": "Anny Klaudya",
-  "username": "annyklaudya",
-  "password": "password123"
+  "name": "Anny",
+  "username": "audyyy",
+  "password": "password123456"
 }
 
-### Masuk ke layanan
+### [STEP 2] Masuk untuk mendapatkan Token
 # @name PostLogin
 POST {{BaseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "annyklaudya",
-  "password": "password123"
+  "username": "audyyy",
+  "password": "password123456"
+}
+
+> {%
+    client.global.set("authToken", response.body.data.authToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
+
+### [OPSIONAL] Refresh Token jika sudah expired
+# @name PostRefreshToken
+POST {{BaseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "authToken": "{{authToken}}",
+  "refreshToken": "{{refreshToken}}"
 }
 
 > {%
@@ -41,26 +56,11 @@ Content-Type: application/json
   "authToken": "{{authToken}}"
 }
 
-### Refresh Token
-# @name PostRefreshToken
-POST {{BaseUrl}}/auth/refresh-token
-Content-Type: application/json
-
-{
-  "authToken": "{{authToken}}",
-  "refreshToken": "{{refreshToken}}"
-}
-
-> {%
-    client.global.set("authToken", response.body.data.authToken);
-    client.global.set("refreshToken", response.body.data.refreshToken);
-%}
-
 ### ---------------------------------------
-## Users
+## 2. USERS (PROFILE MANAGEMENT)
 ### ---------------------------------------
 
-### Mengambil informasi akun
+### [STEP 3] Ambil info akun (PENTING: untuk dapet userId)
 # @name GetUserMe
 GET {{BaseUrl}}/users/me
 Authorization: Bearer {{authToken}}
@@ -70,30 +70,42 @@ Content-Type: application/json
     client.global.set("userId", response.body.data.user.id);
 %}
 
-### Mengubah informasi akun
+### Mengubah informasi profil (Nama & About)
 # @name PutUserMe
 PUT {{BaseUrl}}/users/me
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "name": "Anny Klaudya Hutabarat",
-  "username": "annyklaudya",
+  "name": "Anny",
+  "username": "audyyklaudya",
   "about": "Informatics Student at IT Del | SM Ent Enthusiast"
 }
 
-### ---------------------------------------
-## Artists (SM Entertainment)
-### ---------------------------------------
-
-### Mengambil daftar Artis dengan Pagination dan Filter
-# Parameter: page, perPage, is_active (true/false), group_name (NCT/aespa/Red Velvet)
-# @name GetArtists
-GET {{BaseUrl}}/artists?page=1&perPage=10&is_active=true&group_name=aespa&search=
+### Mengubah foto profil SAYA (Anny)
+# @name PutUserMePhoto
+PUT {{BaseUrl}}/users/me/photo
 Authorization: Bearer {{authToken}}
-Content-Type: application/json
+Content-Type: multipart/form-data; boundary=WebAppBoundary
 
-### Menambahkan data Artis baru
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="anny.png"
+Content-Type: image/png
+
+< ./uploads/examples/anny.png
+--WebAppBoundary--
+
+### Melihat foto profil SAYA
+# @name GetMyPhoto
+GET {{BaseUrl}}/images/users/{{userId}}
+Authorization: Bearer {{authToken}}
+
+
+### ---------------------------------------
+## 3. ARTISTS (SM ENTERTAINMENT DATA)
+### ---------------------------------------
+
+### [STEP 4] Tambah data Artis baru (Karina/Mark/dll)
 # @name PostArtist
 POST {{BaseUrl}}/artists
 Authorization: Bearer {{authToken}}
@@ -107,17 +119,21 @@ Content-Type: application/json
 }
 
 > {%
-    // Menyimpan artistId untuk pengujian berikutnya
+    // Menyimpan artistId secara otomatis untuk request di bawah
     client.global.set("artistId", response.body.data.artistId);
 %}
 
-### Mengambil data artis berdasarkan ID
+### Ambil semua daftar Artis (Filter: aespa)
+# @name GetArtists
+GET {{BaseUrl}}/artists?page=1&perPage=10&is_active=true&group_name=aespa&search=
+Authorization: Bearer {{authToken}}
+
+### Ambil detail Artis berdasarkan ID
 # @name GetArtistById
 GET {{BaseUrl}}/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
-Content-Type: application/json
 
-### Mengubah data artis (Teks)
+### Update data teks Artis
 # @name PutArtist
 PUT {{BaseUrl}}/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
@@ -126,11 +142,11 @@ Content-Type: application/json
 {
   "name": "Karina",
   "groupName": "aespa",
-  "position": "Leader, Face of the Group",
+  "position": "Leader, Center, Visual",
   "isActive": true
 }
 
-### Mengubah foto profil artis
+### Update FOTO Artis (Bukan foto profil kamu)
 # @name PutArtistPhoto
 PUT {{BaseUrl}}/artists/{{artistId}}/photo
 Authorization: Bearer {{authToken}}
@@ -143,20 +159,17 @@ Content-Type: image/png
 < ./uploads/examples/karina.png
 --WebAppBoundary--
 
-### Mengambil statistik Artis (Total, Aktif, Tidak Aktif)
+### Ambil Statistik (Total, Aktif, Inaktif)
 # @name GetArtistStats
 GET {{BaseUrl}}/artists/stats
 Authorization: Bearer {{authToken}}
-Content-Type: application/json
 
-### Mengambil foto artis
+### Lihat foto Artis yang diupload
 # @name GetArtistPhoto
 GET {{BaseUrl}}/images/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
-Content-Type: application/json
 
-### Menghapus data artis
+### Hapus Artis
 # @name DeleteArtist
 DELETE {{BaseUrl}}/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
-Content-Type: application/json
