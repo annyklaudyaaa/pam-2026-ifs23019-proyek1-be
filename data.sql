@@ -1,56 +1,33 @@
--- 1. Tabel User (Manajemen Profile & Auth)
+-- 1. Tabel Users (Tetap sama untuk manajemen akun admin/user)
 CREATE TABLE IF NOT EXISTS users (
                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
-    username VARCHAR(50) NOT NULL UNIQUE,
+    username VARCHAR(50) NOT NULL,
     password VARCHAR(255) NOT NULL,
     photo VARCHAR(255) NULL,
     about TEXT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
     );
 
--- 2. Tabel Refresh Tokens (Keamanan JWT)
+-- 2. Tabel Refresh Tokens (Tetap sama untuk kebutuhan autentikasi JWT)
 CREATE TABLE IF NOT EXISTS refresh_tokens (
                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     refresh_token TEXT NOT NULL,
     auth_token TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL
     );
 
--- 3. Tabel Artists (Data Artis SM Entertainment)
+-- 3. Tabel Artists (Ganti dari 'todos' untuk topik SM Entertainment)
 CREATE TABLE IF NOT EXISTS artists (
                                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    category VARCHAR(20) NOT NULL,      -- 'Boy Group', 'Girl Group', 'Soloist'
-    description TEXT NOT NULL,
-    image_url TEXT NULL,
-    debut_year INTEGER NOT NULL DEFAULT 2000,
-    status VARCHAR(15) NOT NULL DEFAULT 'Active',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-
--- 4. Tabel Album (Satu Artist memiliki banyak Album)
-CREATE TABLE IF NOT EXISTS albums (
-                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    artist_id UUID NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
-    title VARCHAR(100) NOT NULL,
-    release_date VARCHAR(20),
-    cover_url TEXT NULL,
-    -- KOLOM BARU: Agar sinkron dengan Kotlin AlbumTable
-    type VARCHAR(30) NOT NULL DEFAULT 'Full Album',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-
--- 5. Tabel Favorites (Bias System)
-CREATE TABLE IF NOT EXISTS favorites (
-                                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    artist_id UUID NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, artist_id)
+    name VARCHAR(255) NOT NULL,              -- Nama Artis (ex: Karina, Mark Lee)
+    group_name VARCHAR(100) NOT NULL,        -- Nama Grup (ex: aespa, NCT)
+    position VARCHAR(100) NOT NULL DEFAULT 'Member', -- Posisi dalam grup
+    is_active BOOLEAN NOT NULL DEFAULT TRUE, -- Status aktif di agensi
+    photo_url TEXT NULL,                     -- Path/URL foto artis
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
     );

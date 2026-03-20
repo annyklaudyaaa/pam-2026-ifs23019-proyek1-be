@@ -10,16 +10,11 @@ import java.util.UUID
 data class Artist(
     var id: String = UUID.randomUUID().toString(),
     var userId: String,
-
-    // Informasi Utama
-    var name: String,         // Contoh: "aespa", "NCT Dream"
-    var category: String,     // Contoh: "Boy Group", "Girl Group", "Soloist"
-    var description: String,
-    var imageUrl: String?,    // Path foto artis
-
-    // Field tambahan sesuai topik Entertainment
-    var debutYear: Int = 2000,
-    var status: String = "Active", // "Active", "Hiatus", "Disbanded"
+    var name: String,           // Nama Idol/Artis
+    var groupName: String,      // Nama Grup (misal: aespa, NCT)
+    var isActive: Boolean = true, // Status aktif di agensi
+    var photoUrl: String?,       // Foto profil
+    var position: String = "Member", // Posisi dalam grup
 
     @Contextual
     val createdAt: Instant = Clock.System.now(),

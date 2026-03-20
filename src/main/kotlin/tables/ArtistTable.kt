@@ -3,28 +3,18 @@ package org.delcom.tables
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
-object ArtistTable : UUIDTable("artists") {
-    // Menghubungkan ke UserTable (siapa yang menambah/mengelola data ini)
+object ArtistTable : UUIDTable("artists") { // Nama tabel di database menjadi 'artists'
+    // Menghubungkan artis ke user/admin yang menginputnya
     val userId = uuid("user_id").references(UserTable.id)
 
-    // Nama Artis atau Grup (Contoh: "aespa", "NCT 127", "Taeyeon")
-    val name = varchar("name", 100)
+    // Informasi Artis SM Entertainment
+    val name = varchar("name", 255)           // Nama Artis (misal: "Mark Lee")
+    val groupName = varchar("group_name", 255) // Nama Grup (misal: "NCT 127")
+    val photoUrl = text("photo_url").nullable() // URL foto profil
+    val position = varchar("position", 100).default("Member") // Posisi (Vocal, Dancer, dll)
+    val isActive = bool("is_active").default(true) // Status aktif
 
-    // Kategori untuk fitur FILTER (Contoh: "Boy Group", "Girl Group", "Soloist")
-    val category = varchar("category", 20)
-
-    // Deskripsi atau Bio singkat
-    val description = text("description")
-
-    // URL Foto untuk cover/profile (Gunakan text karena URL bisa panjang)
-    val imageUrl = text("image_url").nullable()
-
-    // Tahun Debut (Bisa untuk tambahan filter/sorting)
-    val debutYear = integer("debut_year").default(2000)
-
-    // Status (Misal: Active / Inactive)
-    val status = varchar("status", 15).default("Active")
-
+    // Metadata
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
 }

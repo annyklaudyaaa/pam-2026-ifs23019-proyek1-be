@@ -1,5 +1,6 @@
 ## Global Variabel
-@BaseUrl = https://pam-2026-ifs23019-proyek1-be.annyklaudya.site:8080/
+@BaseUrl = https://pam-2026-p5-ifs23019-be.annyklaudya.site:8080
+# @BaseUrl = http://127.0.0.1:8000
 
 ### ---------------------------------------
 ## Auth
@@ -11,8 +12,8 @@ POST {{BaseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "name": "Klaudya",
-  "username": "annyhtb",
+  "name": "Anny Klaudya",
+  "username": "annyklaudya",
   "password": "password123"
 }
 
@@ -22,7 +23,7 @@ POST {{BaseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "annyhtb",
+  "username": "annyklaudya",
   "password": "password123"
 }
 
@@ -56,18 +57,17 @@ Content-Type: application/json
 %}
 
 ### ---------------------------------------
-## Users (Profile Management)
+## Users
 ### ---------------------------------------
 
-### Mengambil informasi akun saya
+### Mengambil informasi akun
 # @name GetUserMe
 GET {{BaseUrl}}/users/me
 Authorization: Bearer {{authToken}}
+Content-Type: application/json
 
 > {%
-    if (response.status === 200) {
-        client.global.set("userId", response.body.data.user.id);
-    }
+    client.global.set("userId", response.body.data.user.id);
 %}
 
 ### Mengubah informasi akun
@@ -77,137 +77,86 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "name": "Anny Klaudya",
-  "username": "anny_klaudya",
-  "about": "Informatics Student"
+  "name": "Anny Klaudya Hutabarat",
+  "username": "annyklaudya",
+  "about": "Informatics Student at IT Del | SM Ent Enthusiast"
 }
 
-### Mengubah kata sandi
-# @name PutUserMePassword
-PUT {{BaseUrl}}/users/me/password
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-  "newPassword": "passwordBaru",
-  "password": "password123"
-}
-
-### Mengubah photo profile
-# @name PutUserMePhoto
-PUT {{BaseUrl}}/users/me/photo
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-
---WebAppBoundary
-Content-Disposition: form-data; name="photo"; filename="profile.png"
-Content-Type: image/png
-
-< ./uploads/examples/anny.png
---WebAppBoundary--
-
-### Mengambil photo profile user
-# @name GetMyPhoto
-GET {{BaseUrl}}/images/users/{{userId}}
-Authorization: Bearer {{authToken}}
-
 ### ---------------------------------------
-## Artists (SM Entertainment Data)
+## Artists (SM Entertainment)
 ### ---------------------------------------
 
-### Mengambil daftar artis dengan Search & Filter Kategori
-# Parameter: page, perPage, category (Girl Group/Boy Group/Soloist), status (Active/Hiatus)
+### Mengambil daftar Artis dengan Pagination dan Filter
+# Parameter: page, perPage, is_active (true/false), group_name (NCT/aespa/Red Velvet)
 # @name GetArtists
-GET {{BaseUrl}}/artists?page=1&perPage=10&category=Girl Group&search=aespa
+GET {{BaseUrl}}/artists?page=1&perPage=10&is_active=true&group_name=aespa&search=
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
-### Menambahkan artis baru
-# @name PostArtists
+### Menambahkan data Artis baru
+# @name PostArtist
 POST {{BaseUrl}}/artists
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "name": "aespa",
-  "category": "Girl Group",
-  "description": "Next level girl group under SM Entertainment",
-  "debutYear": 2020,
-  "status": "Active"
+  "name": "Karina",
+  "groupName": "aespa",
+  "position": "Leader, Main Dancer",
+  "isActive": true
 }
 
 > {%
+    // Menyimpan artistId untuk pengujian berikutnya
     client.global.set("artistId", response.body.data.artistId);
 %}
 
-### Mengambil detail artis berdasarkan ID
+### Mengambil data artis berdasarkan ID
 # @name GetArtistById
 GET {{BaseUrl}}/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
-### Mengubah data teks artis
+### Mengubah data artis (Teks)
 # @name PutArtist
 PUT {{BaseUrl}}/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "name": "aespa",
-  "category": "Girl Group",
-  "description": "Global hitmaker under SM Entertainment",
-  "debutYear": 2020,
-  "status": "Active"
+  "name": "Karina",
+  "groupName": "aespa",
+  "position": "Leader, Face of the Group",
+  "isActive": true
 }
 
-### Mengubah foto artis
-# @name PutArtistImage
-PUT {{BaseUrl}}/artists/{{artistId}}/image
+### Mengubah foto profil artis
+# @name PutArtistPhoto
+PUT {{BaseUrl}}/artists/{{artistId}}/photo
 Authorization: Bearer {{authToken}}
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 
 --WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="aespa.png"
+Content-Disposition: form-data; name="file"; filename="karina.png"
 Content-Type: image/png
 
-< ./uploads/examples/aespa.png
+< ./uploads/examples/karina.png
 --WebAppBoundary--
 
-### Mengambil statistik artis (Boy vs Girl Group)
+### Mengambil statistik Artis (Total, Aktif, Tidak Aktif)
 # @name GetArtistStats
 GET {{BaseUrl}}/artists/stats
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
-### Mengambil foto artis untuk ditampilkan di UI
-# @name GetArtistImage
+### Mengambil foto artis
+# @name GetArtistPhoto
 GET {{BaseUrl}}/images/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
+Content-Type: application/json
 
 ### Menghapus data artis
 # @name DeleteArtist
 DELETE {{BaseUrl}}/artists/{{artistId}}
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-### ---------------------------------------
-## Diskografi & Bias System (Fitur Tambahan)
-### ---------------------------------------
-
-### Toggle Favorite (Tambah/Hapus dari Bias)
-# @name ToggleFavorite
-POST {{BaseUrl}}/artists/{{artistId}}/favorite
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-### Mengambil Daftar Semua Bias (Artis Favorit)
-# @name GetMyFavorites
-GET {{BaseUrl}}/artists/favorites
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-### Mengambil Detail Artis + Daftar Albumnya
-# @name GetArtistWithAlbums
-GET {{BaseUrl}}/artists/{{artistId}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
